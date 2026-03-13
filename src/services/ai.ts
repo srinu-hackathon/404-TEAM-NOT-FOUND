@@ -69,13 +69,15 @@ A **Binary Tree** is a hierarchical structure where each node has at most two ch
 3.  **Action/Reaction:** For every action, there is an equal and opposite reaction.`
 };
 
-export const generateExplanation = async (prompt: string): Promise<string> => {
+export const generateExplanation = async (prompt: string, options: { skipLibrary?: boolean; raw?: boolean } = {}): Promise<string> => {
     const normalizedPrompt = prompt.toLowerCase();
 
     // 1. Check Local Expert Library (Instant/Free)
-    for (const [key, response] of Object.entries(academicLibrary)) {
-        if (normalizedPrompt.includes(key)) {
-            return new Promise((resolve) => setTimeout(() => resolve(response), 400));
+    if (!options.skipLibrary) {
+        for (const [key, response] of Object.entries(academicLibrary)) {
+            if (normalizedPrompt.includes(key)) {
+                return new Promise((resolve) => setTimeout(() => resolve(response), 400));
+            }
         }
     }
 
@@ -93,10 +95,10 @@ export const generateExplanation = async (prompt: string): Promise<string> => {
                     body: JSON.stringify({
                         model: "llama-3.3-70b-versatile",
                         messages: [
-                            { role: "system", content: "You are a senior academic assistant. Provide structured, professional markdown-only explanations. No emojis." },
+                            { role: "system", content: options.raw ? "You are a specialized JSON data generator. Return ONLY raw JSON code. No conversation." : "You are a senior academic assistant. Provide structured, professional markdown-only explanations. No emojis." },
                             { role: "user", content: prompt }
                         ],
-                        temperature: 0.3,
+                        temperature: options.raw ? 0.1 : 0.3,
                         max_tokens: 1024
                     })
                 });
@@ -125,7 +127,7 @@ export const generateExplanation = async (prompt: string): Promise<string> => {
                     body: JSON.stringify({
                         model: "meta-llama/llama-3.1-8b-instruct:free",
                         messages: [
-                            { role: "system", content: "Senior academic assistant. Professional markdown. No emojis." },
+                            { role: "system", content: options.raw ? "JSON Generator. Return clean JSON array or object ONLY." : "Senior academic assistant. Professional markdown. No emojis." },
                             { role: "user", content: prompt }
                         ]
                     })
@@ -147,7 +149,8 @@ export const generateExplanation = async (prompt: string): Promise<string> => {
                 for (const modelId of GEMINI_MODELS) {
                     try {
                         const activeModel = genAI.getGenerativeModel({ model: modelId }, { apiVersion: version });
-                        const result = await activeModel.generateContent(`Explain "${prompt}" professionally and concisely in academic markdown. No emojis.`);
+                        const finalPrompt = options.raw ? prompt : `Explain "${prompt}" professionally and concisely in academic markdown. No emojis.`;
+                        const result = await activeModel.generateContent(finalPrompt);
                         const text = result.response.text();
                         if (text) return text;
                     } catch (e) { continue; }
@@ -157,7 +160,7 @@ export const generateExplanation = async (prompt: string): Promise<string> => {
     }
 
     // 5. Final Generic Response
-    return `## Academic Overview: ${prompt}
+    return options.raw ? "[]" : `## Academic Overview: ${prompt}
 
 We are currently experiencing extremely high demand. 
 
@@ -167,4 +170,28 @@ We are currently experiencing extremely high demand.
 
 > [!TIP]
 > The app is automatically cycling through 12 different API providers to fulfill your request.`;
+};
+
+/**
+ * Robustly extracts a JSON array or object from an AI response string.
+ * Handles markdown blocks and conversational chatter.
+ */
+export const extractJSON = <T>(input: string): T => {
+    try {
+        // Find the first occurrence of [ or {
+        const startIdx = input.search(/[\[\{]/);
+        // Find the last occurrence of ] or }
+        const endIdx = input.lastIndexOf(input[startIdx] === '[' ? ']' : '}');
+
+        if (startIdx === -1 || endIdx === -1) {
+            throw new Error("No JSON structure found in response");
+        }
+
+        const jsonStr = input.substring(startIdx, endIdx + 1);
+        return JSON.parse(jsonStr) as T;
+    } catch (e) {
+        console.error("JSON Extraction failed:", e);
+        // Fallback for very messy strings - try direct parse
+        return JSON.parse(input.replace(/```json|```/g, "").trim()) as T;
+    }
 };

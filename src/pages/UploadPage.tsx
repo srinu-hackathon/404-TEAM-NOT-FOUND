@@ -33,16 +33,7 @@ const UploadPage = () => {
   const [dragOver, setDragOver] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const { data: subjects = [] } = useQuery({
-    queryKey: ["subjects"],
-    queryFn: () => api.getSubjects(),
-  });
-
-  const { data: topics = [] } = useQuery({
-    queryKey: ["topics", selectedSubject],
-    queryFn: () => api.getTopicsBySubject(selectedSubject),
-    enabled: !!selectedSubject,
-  });
+  // Removed subjects/topics queries for direct text input flow
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
@@ -186,32 +177,24 @@ const UploadPage = () => {
             {/* Subject */}
             <div>
               <label className={labelClass}>Subject *</label>
-              <select
-                required value={selectedSubject}
-                onChange={(e) => { setSelectedSubject(e.target.value); setSelectedTopic(""); }}
+              <input
+                type="text" required value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                placeholder="e.g. Computer Science, Anatomy..."
                 className={inputClass}
-              >
-                <option value="">Select subject</option>
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.icon} {s.name}</option>
-                ))}
-              </select>
+              />
             </div>
 
             {/* Topic */}
-            <AnimatePresence>
-              {selectedSubject && (
-                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-                  <label className={labelClass}>Topic *</label>
-                  <select required value={selectedTopic} onChange={(e) => setSelectedTopic(e.target.value)} className={inputClass}>
-                    <option value="">Select topic</option>
-                    {topics.map((t) => (
-                      <option key={t.id} value={t.id}>{t.name}</option>
-                    ))}
-                  </select>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            <div>
+              <label className={labelClass}>Topic *</label>
+              <input
+                type="text" required value={selectedTopic}
+                onChange={(e) => setSelectedTopic(e.target.value)}
+                placeholder="e.g. Linked Lists, Neural Networks..."
+                className={inputClass}
+              />
+            </div>
 
             {/* Resource Type */}
             <div>

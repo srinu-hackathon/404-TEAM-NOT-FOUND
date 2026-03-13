@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, ChevronLeft, ChevronRight, RotateCcw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
-import { generateExplanation } from "@/services/ai";
+import { generateExplanation, extractJSON } from "@/services/ai";
 
 interface Flashcard {
     front: string;
@@ -18,10 +18,12 @@ const FlashcardsPage = () => {
     const [current, setCurrent] = useState(0);
     const [flipped, setFlipped] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
 
     const generateCards = useCallback(async () => {
         if (!topic.trim()) return;
         setIsLoading(true);
+        setError(null);
 
         try {
             const prompt = `Create exactly ${count} flashcards about "${topic}" for studying.
@@ -36,14 +38,19 @@ Rules:
 - Cover the most important aspects of the topic
 - Return ONLY the JSON array`;
 
-            const response = await generateExplanation(prompt);
-            const jsonStr = response.replace(/```json|```/g, "").trim();
-            const parsed: Flashcard[] = JSON.parse(jsonStr);
+            const response = await generateExplanation(prompt, { skipLibrary: true, raw: true });
+            const parsed = extractJSON<Flashcard[]>(response);
+
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                throw new Error("Invalid flashcard format received");
+            }
+
             setCards(parsed.slice(0, count));
             setCurrent(0);
             setFlipped(false);
         } catch (e) {
             console.error("Flashcard generation failed:", e);
+            setError("Failed to create flashcards. Please try again or a different topic.");
         } finally {
             setIsLoading(false);
         }
@@ -88,6 +95,12 @@ Rules:
                             <h2 className="text-lg font-black">AI Flashcard Generator</h2>
                             <p className="text-xs text-muted-foreground mt-1">Enter any topic and get instant study flashcards</p>
                         </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs font-bold animate-in fade-in zoom-in">
+                                {error}
+                            </div>
+                        )}
 
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic</label>
@@ -172,8 +185,8 @@ Rules:
                                     exit={{ rotateY: -90, opacity: 0 }}
                                     transition={{ duration: 0.3 }}
                                     className={`rounded-2xl p-6 min-h-[220px] flex flex-col items-center justify-center text-center border-2 ${flipped
-                                            ? "bg-primary/5 border-primary/20"
-                                            : "bg-card border-border"
+                                        ? "bg-primary/5 border-primary/20"
+                                        : "bg-card border-border"
                                         }`}
                                 >
                                     <span className={`text-[10px] font-black uppercase tracking-widest mb-3 ${flipped ? "text-primary" : "text-muted-foreground"}`}>

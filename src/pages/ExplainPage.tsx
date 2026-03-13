@@ -4,7 +4,7 @@ import { Sparkles, Loader2, ChevronLeft, Copy, CheckCircle2, Bookmark } from "lu
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
 import { generateExplanation } from "@/services/ai";
-import { isBookmarked, toggleBookmark } from "@/components/ResourceCard";
+import { isBookmarked, toggleBookmark } from "@/utils/bookmarks";
 import type { Resource } from "@/types";
 
 const MODES = [

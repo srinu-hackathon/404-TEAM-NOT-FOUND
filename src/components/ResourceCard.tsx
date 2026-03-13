@@ -5,6 +5,7 @@ import VideoModal from "./VideoModal";
 import type { Resource } from "@/types";
 import { api } from "@/services/api";
 import { useToast } from "@/hooks/use-toast";
+import { isBookmarked, toggleBookmark } from "@/utils/bookmarks";
 
 const iconMap = {
   pdf: FileText,
@@ -22,32 +23,6 @@ const colorMap = {
   oer: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
 };
 
-// Bookmark helpers using localStorage
-const BOOKMARKS_KEY = "studysphere_bookmarks_v2";
-
-export const getBookmarks = (): Resource[] => {
-  try {
-    return JSON.parse(localStorage.getItem(BOOKMARKS_KEY) || "[]");
-  } catch { return []; }
-};
-
-export const isBookmarked = (id: string): boolean => {
-  return getBookmarks().some(b => b.id === id);
-};
-
-export const toggleBookmark = (resource: Resource): boolean => {
-  const bookmarks = getBookmarks();
-  const index = bookmarks.findIndex(b => b.id === resource.id);
-  if (index > -1) {
-    bookmarks.splice(index, 1);
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-    return false;
-  } else {
-    bookmarks.push(resource);
-    localStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-    return true;
-  }
-};
 
 export default function ResourceCard({ resource, index }: { resource: Resource; index: number }) {
   const Icon = iconMap[resource.type];
@@ -180,9 +155,9 @@ export default function ResourceCard({ resource, index }: { resource: Resource; 
 
       {resource.type === "video" && resource.youtubeId && (
         <VideoModal
-          isOpen={isVideoOpen}
+          open={isVideoOpen}
           onClose={() => setIsVideoOpen(false)}
-          videoId={resource.youtubeId}
+          youtubeId={resource.youtubeId}
           title={resource.title}
         />
       )}

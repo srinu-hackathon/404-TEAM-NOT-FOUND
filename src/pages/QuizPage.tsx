@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Loader2, CheckCircle2, XCircle, ArrowRight, RotateCcw, Trophy, ChevronLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "@/components/PageHeader";
-import { generateExplanation } from "@/services/ai";
+import { generateExplanation, extractJSON } from "@/services/ai";
 
 interface Question {
     question: string;
@@ -23,6 +23,7 @@ const QuizPage = () => {
     const [difficulty, setDifficulty] = useState("Medium");
     const [count, setCount] = useState(5);
     const [state, setState] = useState<QuizState>("setup");
+    const [error, setError] = useState<string | null>(null);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [current, setCurrent] = useState(0);
     const [selected, setSelected] = useState<number | null>(null);
@@ -51,9 +52,13 @@ Rules:
 - Make questions educational and clear
 - Return ONLY the JSON array`;
 
-            const response = await generateExplanation(prompt);
-            const jsonStr = response.replace(/```json|```/g, "").trim();
-            const parsed: Question[] = JSON.parse(jsonStr);
+            const response = await generateExplanation(prompt, { skipLibrary: true, raw: true });
+            const parsed = extractJSON<Question[]>(response);
+
+            if (!Array.isArray(parsed) || parsed.length === 0) {
+                throw new Error("Invalid quiz format received");
+            }
+
             setQuestions(parsed.slice(0, count));
             setCurrent(0);
             setScore(0);
@@ -62,6 +67,7 @@ Rules:
             setState("playing");
         } catch (e) {
             console.error("Quiz generation failed:", e);
+            setError("Failed to generate quiz. AI might be busy, please try again.");
             setState("setup");
         }
     }, [topic, difficulty, count]);
@@ -116,6 +122,12 @@ Rules:
                             <h2 className="text-lg font-black">AI Quiz Generator</h2>
                             <p className="text-xs text-muted-foreground mt-1">Enter any topic and AI will create a custom quiz for you</p>
                         </div>
+
+                        {error && (
+                            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-xs font-bold animate-in fade-in zoom-in">
+                                {error}
+                            </div>
+                        )}
 
                         <div>
                             <label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Topic</label>
